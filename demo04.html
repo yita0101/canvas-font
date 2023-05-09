@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<head>
+    <title>Canvas Text Selection Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        #canvas {
+            border: 1px solid black;
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas" width="800" height="800"></canvas>
+<script>
+    // 获取Canvas元素和上下文对象
+    let canvas = document.getElementById('canvas');
+    let ctx = canvas.getContext('2d');
+
+
+    //一个在canvas元素内的对象地图
+    // position:
+    // catchfun:
+    let str = 'Lo02123rem ipsum 中文dolor sit amet, consectetur arstrrast adipiscing elit.'
+    // str="01234"
+    let objMap = new Map()
+    objMap.set("text", {
+        text: str,
+        font: "30px Arial",
+        x: 10,
+        y: 50,
+        catchFun(x, y) {
+            let textMetrics = ctx.measureText(str);
+            let width = textMetrics.width;
+            let height = textMetrics.actualBoundingBoxAscent + textMetrics.actualBoundingBoxDescent
+            return x >= this.x && x <= this.x + width && y >= this.y && y <= this.y + height
+        },
+        update(){
+            ctx.font = this.font;
+            ctx.textBaseline = "top";
+            ctx.fillText(this.text, this.x, this.y);
+        }
+    })
+
+    objMap.set("lrect",{
+        fillStyle:'rgb(72, 143, 202)',
+        x:undefined,
+        y:undefined,
+        height:undefined,
+        update(){
+            if (this.x === undefined || this.y === undefined) {
+                console.error("update fail. the reason is  x or y value is undefined ")
+            }
+            ctx.fillStyle=this.fillStyle
+            ctx.fillStyle = 'rgb(72, 143, 202)'
+            ctx.fillRect(this.x,this.y , 3, this.height)
+        }
+    })
+    objMap.set("lround",{
+        fillStyle:'rgb(72, 143, 202)',
+        x:undefined,
+        y:undefined,
+        radius:5,
+        update(){
+            if (this.x === undefined || this.y === undefined) {
+                console.error("update fail. the reason is  x or y value is undefined ")
+            }
+            ctx.fillStyle=this.fillStyle
+            ctx.beginPath();
+            ctx.arc(this.x,this.y, this.radius, 0, 2 * Math.PI)
+            ctx.fill()
+            ctx.closePath()
+        },
+        catchFun(x,y){
+            const distance = Math.sqrt((this.x - x) ** 2 + (this.y - y) ** 2);
+            return distance<=this.radius
+        }
+    })
+
+    objMap.set("rrect",{
+        fillStyle:'rgb(72, 143, 202)',
+        x:undefined,
+        y:undefined,
+        height:undefined,
+        update(){
+            if (this.x === undefined || this.y === undefined) {
+                console.error("update fail. the reason is  x or y value is undefined ")
+            }
+            ctx.fillStyle=this.fillStyle
+            ctx.fillStyle = 'rgb(72, 143, 202)'
+            ctx.fillRect(this.x,this.y , 3, this.height)
+        }
+    })
+    objMap.set("rround",{
+        fillStyle:'rgb(72, 143, 202)',
+        x:undefined,
+        y:undefined,
+        radius:5,
+        update(){
+            if (this.x === undefined || this.y === undefined) {
+                console.error("update fail. the reason is  x or y value is undefined ")
+            }
+            ctx.fillStyle=this.fillStyle
+            ctx.beginPath();
+            ctx.arc(this.x,this.y, this.radius, 0, 2 * Math.PI)
+            ctx.fill()
+            ctx.closePath()
+        },
+        catchFun(x,y){
+            const distance = Math.sqrt((this.x - x) ** 2 + (this.y - y) ** 2);
+            return distance<=this.radius
+        }
+    })
+
+
+    // str="0123456789"
+    let selection = {
+        lx: 0,
+        rx:0,
+        y: 0,
+        width: 0,
+        height: 0,
+        isDragging: false
+    };
+
+
+    // let letters = [...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'];
+    //
+    // // 定义一个Map存储每个字母的宽度
+    // let letterWidthMap = new Map();
+    //
+    // // 设置字体
+    // ctx.font = '20px Arial';
+    //
+    // // 遍历26个字母，测量每个字母的宽度，并将它们放入Map中
+    // for (let letter of letters) {
+    //     let width = ctx.measureText(letter).width;
+    //     letterWidthMap.set(letter, width);
+    // }
+
+
+    let selectionObj = {}
+
+    // 绘制文本
+    objMap.get("text").update()
+
+
+    function getTextHeight(ctx, text) {
+        let metrics = ctx.measureText(text); // 获取文本的度量信息
+        return metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent + 4
+    }
+
+    function detectObj(event) {
+        var rect = canvas.getBoundingClientRect();
+        var x = event.clientX - rect.left;
+        var y = event.clientY - rect.top;
+
+        for(const [key,value] of objMap){
+            if (typeof value.catchFun==="function"&&value.catchFun(x,y)){
+                value.name=key
+                return value
+            }
+        }
+
+    }
+
+
+    // 添加鼠标事件监听器
+    canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseup', handleMouseUp);
+
+    // 定义选中文本的信息
+
+    function handlerLround(event) {
+        selection.isDragging=true
+    }
+    function handlerRround(event) {
+        selection.isDragging=true
+    }
+    // 处理鼠标按下事件
+    function handleMouseDown(event) {
+
+        // 获取鼠标在Canvas上的位置
+        var rect = canvas.getBoundingClientRect();
+        var x = event.clientX - rect.left;
+        var y = event.clientY - rect.top;
+        let obj = detectObj(event);
+        console.log(obj)
+        if (obj === undefined) {
+            return;
+        }
+
+
+        if (obj.name==="rround"){
+            handlerRround(event)
+            selection.option=true
+            return;
+        }
+        if (obj.name === "lround") {
+            handlerLround(event)
+            selection.option=false
+            return;
+        }
+
+
+        // 标记当前选中的文本
+        let sum = obj.x;
+        let letter = [...obj.text];
+        let index = 0;
+        let lastsum = 0;
+        while (x > sum) {
+            lastsum = sum
+            sum += ctx.measureText(letter[index++]).width
+        }
+
+
+        selection.lx = lastsum;
+        selection.y = y;
+        selection.width = 0;
+        selection.isDragging = true;
+        selection.letterInedx = index - 1;
+        selection.obj= obj;
+        selection.option=true
+    }
+
+    // 处理鼠标移动事件
+    function handleMouseMove(event) {
+        if (selection.isDragging) {
+            let obj=selection.obj
+            // 获取鼠标在Canvas上的位置
+            let rect = canvas.getBoundingClientRect();
+            let x = event.clientX - rect.left;
+            let y = event.clientY - rect.top;
+
+            let letter = [...obj.text]
+            let sum = 0;
+            // 更新选中文本的位置和大小
+            if (selection.option) {
+                let tempWidth = x - selection.lx;
+                console.log(tempWidth)
+                if (tempWidth<0){
+                    let tempWidth=selection.rx-x
+                    //substring(a,b)不包含b的位置,取长度b-a
+                    let index = selection.index;
+                    while (tempWidth > sum) {
+                        sum += ctx.measureText(letter[--index]).width
+                    }
+
+                    if (selection.index-index===0){
+                        return;
+                    }
+
+                    selection.letterInedx=index
+                    selection.width = sum
+                    selection.lx=selection.rx-selection.width
+                    selection.option=false
+
+                }else {
+                    let tempWidth = x - selection.lx;
+                    let index = selection.letterInedx;
+                    while (tempWidth > sum) {
+                        sum += ctx.measureText(letter[index++]).width;
+                    }
+
+                    if (index - selection.letterInedx === 0) {
+                        return;
+                    }
+                    selection.index = index
+                    selection.width = sum
+                    selection.rx = selection.lx + selection.width
+                }
+            }else{
+                let tempWidth=selection.rx-x
+                if (tempWidth<0){
+                    let tempWidth = x - selection.lx;
+                    let index = selection.letterInedx;
+                    while (tempWidth > sum) {
+                        sum += ctx.measureText(letter[index++]).width;
+                    }
+
+                    if (index - selection.letterInedx === 0) {
+                        return;
+                    }
+                    selection.index = index
+                    selection.width = sum
+                    selection.rx = selection.lx + selection.width
+                    selection.option=true
+                }else {
+                    let tempWidth=selection.rx-x
+                    //substring(a,b)不包含b的位置,取长度b-a
+                    let index = selection.index;
+                    while (tempWidth > sum) {
+                        sum += ctx.measureText(letter[--index]).width
+                    }
+
+                    if (selection.index - index === 0) {
+                        return;
+                    }
+
+                    selection.letterInedx = index
+                    selection.width = sum
+                    selection.lx = selection.rx - selection.width
+                }
+            }
+
+            selection.height = getTextHeight(ctx, str);
+            if (selection.width >= ctx.measureText(obj.text).width) {
+                return
+            }
+
+
+
+
+            // let number = selection.width/widthText*obj.text.length;
+            // console.log(number)
+            // console.log(selection.width,selection.width/widthText)
+            // console.log(ctx.measureText("0").width,ctx.measureText("1").width,ctx.measureText("01").width)
+
+            //
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let lrect = objMap.get("lrect");
+            ctx.fillStyle = lrect.fillStyle
+            lrect.x=selection.lx-3
+            lrect.y=obj.y-4
+            lrect.height=selection.height+5
+            lrect.update()
+            // ctx.fillRect(selection.x - 3, obj.position.y - 4, 3, selection.height + 5)
+
+            let lround = objMap.get("lround");
+            lround.x=selection.lx - 1.5
+            lround.y=obj.y - 9
+            lround.update()
+
+
+            //添加选中效果
+            ctx.fillStyle = 'rgb(178, 178, 238)';
+
+            ctx.fillRect(selection.lx, obj.y, selection.width, selection.height);
+
+            //
+            //重绘文字
+            ctx.fillStyle = 'black';
+            ctx.fillText(obj.text, obj.x, obj.y);
+            //
+            let rrect = objMap.get("rrect");
+            rrect.x=selection.lx + selection.width
+            rrect.y=obj.y-4
+            rrect.height=selection.height+5
+            rrect.update()
+
+            let rround = objMap.get("rround");
+            rround.x=selection.lx + selection.width + 1.5
+            rround.y=obj.y + selection.height + 5
+            rround.update()
+
+            // ctx.beginPath();
+            // ctx.fill()
+            // ctx.closePath()
+        }
+    }
+
+    // 处理鼠标松开事件
+    function handleMouseUp(event) {
+        if (selection.isDragging) {
+            // 标记选中文本已经取消
+            let obj = selection.obj
+            selection.isDragging = false;
+
+            let selectWidth = selection.width;
+
+            // let letters = [...obj.text]
+            // let index = selection.letterInedx
+
+            // while (selectWidth > 0) {
+            //     // let letterWidth=letterWidthMap.get(letters[index])
+            //     //  if (letterWidth === undefined) {
+            //     let letterWidth = ctx.measureText(letters[index++]).width
+            //     //  }
+            //     selectWidth -= letterWidth
+            //     // console.log(letters[index],letterWidth,selectWidth)
+            // }
+            let data = obj.text.substring(selection.letterInedx, selection.index);
+            console.log(data, ctx.measureText(data).width, selectWidth)
+            // const clipboard = navigator.clipboard;
+            // clipboard.writeText(data).then(() => {
+            //     console.log('Text copied to clipboard:', data);
+            // });
+        }
+    }
+
+</script>
+</body>
+</html>
